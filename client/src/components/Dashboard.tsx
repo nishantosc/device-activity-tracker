@@ -1,5 +1,21 @@
-import React, { useEffect, useState } from 'react';
-import {Eye, EyeOff, Plus, Trash2, Zap, MessageCircle, Settings} from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+    Eye,
+    EyeOff,
+    Plus,
+    Trash2,
+    Zap,
+    MessageCircle,
+    Settings,
+    Download,
+    Radar,
+    ScanSearch,
+    Brain,
+    FileCode,
+    Shield,
+    Bot,
+    BarChart3
+} from 'lucide-react';
 import { socket, Platform, ConnectionState } from '../App';
 import { ContactCard } from './ContactCard';
 import { Login } from './Login';
@@ -38,6 +54,13 @@ interface ContactInfo {
     platform: Platform;
 }
 
+const mockModules = [
+    { label: 'Graph Correlation Engine', status: 'Calibrating', icon: BarChart3 },
+    { label: 'OSINT Identity Linker', status: 'Passive Collection', icon: ScanSearch },
+    { label: 'Behavior Signature Model', status: 'Awaiting Samples', icon: Brain },
+    { label: 'Threat Actor Replay Sandbox', status: 'Armed', icon: Shield }
+];
+
 export function Dashboard({ connectionState }: DashboardProps) {
     const [inputNumber, setInputNumber] = useState('');
     const [selectedPlatform, setSelectedPlatform] = useState<Platform>(
@@ -59,7 +82,6 @@ export function Dashboard({ connectionState }: DashboardProps) {
                 const contact = next.get(jid);
 
                 if (contact) {
-                    // Update existing contact
                     const updatedContact = { ...contact };
 
                     if (data.presence !== undefined) {
@@ -72,7 +94,6 @@ export function Dashboard({ connectionState }: DashboardProps) {
                         updatedContact.devices = data.devices;
                     }
 
-                    // Add to chart data
                     if (data.median !== undefined && data.devices && data.devices.length > 0) {
                         const newDataPoint: TrackerData = {
                             rtt: data.devices[0].rtt,
@@ -92,7 +113,7 @@ export function Dashboard({ connectionState }: DashboardProps) {
             });
         }
 
-        function onProfilePic(data: { jid: string, url: string | null }) {
+        function onProfilePic(data: { jid: string; url: string | null }) {
             setContacts(prev => {
                 const next = new Map(prev);
                 const contact = next.get(data.jid);
@@ -103,7 +124,7 @@ export function Dashboard({ connectionState }: DashboardProps) {
             });
         }
 
-        function onContactName(data: { jid: string, name: string }) {
+        function onContactName(data: { jid: string; name: string }) {
             setContacts(prev => {
                 const next = new Map(prev);
                 const contact = next.get(data.jid);
@@ -114,7 +135,7 @@ export function Dashboard({ connectionState }: DashboardProps) {
             });
         }
 
-        function onContactAdded(data: { jid: string, number: string, platform?: Platform }) {
+        function onContactAdded(data: { jid: string; number: string; platform?: Platform }) {
             setContacts(prev => {
                 const next = new Map(prev);
                 next.set(data.jid, {
@@ -141,7 +162,7 @@ export function Dashboard({ connectionState }: DashboardProps) {
             });
         }
 
-        function onError(data: { jid?: string, message: string }) {
+        function onError(data: { jid?: string; message: string }) {
             setError(data.message);
             setTimeout(() => setError(null), 3000);
         }
@@ -150,19 +171,12 @@ export function Dashboard({ connectionState }: DashboardProps) {
             setProbeMethod(method);
         }
 
-        function onTrackedContacts(contacts: { id: string, platform: Platform }[]) {
+        function onTrackedContacts(connectedContacts: { id: string; platform: Platform }[]) {
             setContacts(prev => {
                 const next = new Map(prev);
-                contacts.forEach(({ id, platform }) => {
+                connectedContacts.forEach(({ id, platform }) => {
                     if (!next.has(id)) {
-                        // Extract display number from id
-                        let displayNumber = id;
-                        if (platform === 'signal') {
-                            displayNumber = id.replace('signal:', '');
-                        } else {
-                            // WhatsApp JID format: number@s.whatsapp.net
-                            displayNumber = id.split('@')[0];
-                        }
+                        const displayNumber = platform === 'signal' ? id.replace('signal:', '') : id.split('@')[0];
                         next.set(id, {
                             jid: id,
                             displayNumber,
@@ -189,7 +203,6 @@ export function Dashboard({ connectionState }: DashboardProps) {
         socket.on('probe-method', onProbeMethod);
         socket.on('tracked-contacts', onTrackedContacts);
 
-        // Request tracked contacts after listeners are set up
         socket.emit('get-tracked-contacts');
 
         return () => {
@@ -217,143 +230,167 @@ export function Dashboard({ connectionState }: DashboardProps) {
         socket.emit('set-probe-method', method);
     };
 
+    const totalDevices = useMemo(
+        () => Array.from(contacts.values()).reduce((sum, contact) => sum + (contact.deviceCount || 0), 0),
+        [contacts]
+    );
+
     return (
         <div className="space-y-6">
-            {/* Add Contact Form */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                <div className="flex justify-between items-center mb-4">
-                    <div className="flex items-center gap-4">
-                        <h2 className="text-xl font-semibold text-gray-900">Track Contacts</h2>
-                        {/* Manage Connections button */}
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+                <div className="xl:col-span-2 rounded-2xl border border-cyan-500/30 bg-slate-950/80 p-5 shadow-[0_0_30px_rgba(6,182,212,0.12)]">
+                    <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
+                        <div>
+                            <h2 className="text-xl font-semibold text-cyan-100">Live Target Intake</h2>
+                            <p className="text-sm text-slate-400">Mock analyst tooling with real-time RTT stream retained.</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => setShowConnections(!showConnections)}
+                                className="px-3 py-2 text-sm font-medium rounded-lg bg-slate-800 text-slate-100 border border-slate-700 hover:border-cyan-400/50 flex items-center gap-2"
+                            >
+                                <Settings size={14} />
+                                {showConnections ? 'Hide Connections' : 'Manage Connections'}
+                            </button>
+                            <button
+                                className="px-3 py-2 text-sm font-medium rounded-lg bg-indigo-900/40 text-indigo-200 border border-indigo-500/40 hover:border-indigo-400 flex items-center gap-2"
+                                title="Mock export action for model injection workflows"
+                            >
+                                <Download size={14} />
+                                Export HuggingFace Injection CSV
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-col lg:flex-row gap-4">
+                        <div className="flex rounded-lg overflow-hidden border border-slate-700">
+                            <button
+                                onClick={() => setSelectedPlatform('whatsapp')}
+                                disabled={!connectionState.whatsapp}
+                                className={`px-4 py-2 text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
+                                    selectedPlatform === 'whatsapp'
+                                        ? 'bg-emerald-600 text-white'
+                                        : connectionState.whatsapp
+                                            ? 'bg-slate-900 text-slate-300 hover:bg-slate-800'
+                                            : 'bg-slate-900 text-slate-500 cursor-not-allowed'
+                                }`}
+                            >
+                                <MessageCircle size={16} /> WhatsApp
+                            </button>
+                            <button
+                                onClick={() => setSelectedPlatform('signal')}
+                                disabled={!connectionState.signal}
+                                className={`px-4 py-2 text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
+                                    selectedPlatform === 'signal'
+                                        ? 'bg-sky-600 text-white'
+                                        : connectionState.signal
+                                            ? 'bg-slate-900 text-slate-300 hover:bg-slate-800'
+                                            : 'bg-slate-900 text-slate-500 cursor-not-allowed'
+                                }`}
+                            >
+                                <Radar size={16} /> Signal
+                            </button>
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="Enter phone number (e.g. 491701234567)"
+                            className="flex-1 px-4 py-2 border border-slate-700 rounded-lg bg-slate-900 text-slate-100 focus:ring-2 focus:ring-cyan-500 outline-none"
+                            value={inputNumber}
+                            onChange={(e) => setInputNumber(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && handleAdd()}
+                        />
                         <button
-                            onClick={() => setShowConnections(!showConnections)}
-                            className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors flex items-center gap-1 ${
-                                showConnections
-                                    ? 'bg-gray-700 text-white'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
+                            onClick={handleAdd}
+                            className="px-6 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-500 flex items-center gap-2 font-medium transition-colors"
                         >
-                            <Settings size={14} />
-                            {showConnections ? 'Hide Connections' : 'Manage Connections'}
+                            <Plus size={20} /> Add Contact
                         </button>
                     </div>
-                    <div className="flex items-center gap-4">
-                        {/* Probe Method Toggle */}
+
+                    <div className="mt-4 flex flex-wrap gap-3 items-center">
                         <div className="flex items-center gap-2">
-                            <span className="text-sm text-gray-600">Probe Method:</span>
-                            <div className="flex rounded-lg overflow-hidden border border-gray-300">
+                            <span className="text-sm text-slate-300">Probe Method:</span>
+                            <div className="flex rounded-lg overflow-hidden border border-slate-700">
                                 <button
                                     onClick={() => handleProbeMethodChange('delete')}
-                                    className={`px-3 py-1.5 text-sm font-medium transition-all duration-200 flex items-center gap-1 ${
-                                        probeMethod === 'delete'
-                                            ? 'bg-purple-600 text-white'
-                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                    className={`px-3 py-1.5 text-sm font-medium flex items-center gap-1 ${
+                                        probeMethod === 'delete' ? 'bg-fuchsia-600 text-white' : 'bg-slate-900 text-slate-300'
                                     }`}
-                                    title="Silent Delete Probe - Completely covert, target sees nothing"
                                 >
-                                    <Trash2 size={14} />
-                                    Delete
+                                    <Trash2 size={14} /> Delete
                                 </button>
                                 <button
                                     onClick={() => handleProbeMethodChange('reaction')}
-                                    className={`px-3 py-1.5 text-sm font-medium transition-all duration-200 flex items-center gap-1 ${
-                                        probeMethod === 'reaction'
-                                            ? 'bg-yellow-500 text-white'
-                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                    className={`px-3 py-1.5 text-sm font-medium flex items-center gap-1 ${
+                                        probeMethod === 'reaction' ? 'bg-amber-500 text-slate-900' : 'bg-slate-900 text-slate-300'
                                     }`}
-                                    title="Reaction Probe - Sends reactions to non-existent messages"
                                 >
-                                    <Zap size={14} />
-                                    Reaction
+                                    <Zap size={14} /> Reaction
                                 </button>
                             </div>
                         </div>
-                        {/* Privacy Mode Toggle */}
+
                         <button
                             onClick={() => setPrivacyMode(!privacyMode)}
-                            className={`px-4 py-2 rounded-lg flex items-center gap-2 font-medium transition-all duration-200 ${
-                                privacyMode 
-                                    ? 'bg-green-600 text-white hover:bg-green-700 shadow-md' 
-                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                            className={`px-4 py-2 rounded-lg flex items-center gap-2 font-medium ${
+                                privacyMode
+                                    ? 'bg-emerald-700 text-white hover:bg-emerald-600'
+                                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                             }`}
-                            title={privacyMode ? 'Privacy Mode: ON (Click to disable)' : 'Privacy Mode: OFF (Click to enable)'}
                         >
-                            {privacyMode ? (
-                                <>
-                                    <EyeOff size={20} />
-                                    <span>Privacy ON</span>
-                                </>
-                            ) : (
-                                <>
-                                    <Eye size={20} />
-                                    <span>Privacy OFF</span>
-                                </>
-                            )}
+                            {privacyMode ? <EyeOff size={18} /> : <Eye size={18} />}
+                            {privacyMode ? 'Privacy ON' : 'Privacy OFF'}
                         </button>
+
+                        <p className="text-xs text-slate-400">Attribution: Nishant Iyer • Advanced mock intelligence controls.</p>
+                    </div>
+
+                    {error && <p className="mt-2 text-red-400 text-sm">{error}</p>}
+                </div>
+
+                <div className="rounded-2xl border border-slate-700 bg-slate-950/80 p-5 space-y-3">
+                    <h3 className="font-semibold text-slate-100 flex items-center gap-2"><Bot size={16} className="text-violet-300" /> Mock Security Modules</h3>
+                    {mockModules.map(module => (
+                        <div key={module.label} className="rounded-lg border border-slate-700 bg-slate-900/80 px-3 py-2 flex justify-between items-center">
+                            <div className="flex items-center gap-2 text-sm text-slate-200">
+                                <module.icon size={14} className="text-cyan-300" />
+                                <span>{module.label}</span>
+                            </div>
+                            <span className="text-xs text-slate-400">{module.status}</span>
+                        </div>
+                    ))}
+                    <div className="rounded-lg border border-dashed border-indigo-400/40 p-3 text-xs text-indigo-200 bg-indigo-950/30 flex items-start gap-2">
+                        <FileCode size={14} className="mt-0.5" />
+                        CSV Schema (Mock): target_id, rtt_avg, rtt_median, threshold, osint_flags, injection_prompt.
                     </div>
                 </div>
-                <div className="flex gap-4">
-                    {/* Platform Selector */}
-                    <div className="flex rounded-lg overflow-hidden border border-gray-300">
-                        <button
-                            onClick={() => setSelectedPlatform('whatsapp')}
-                            disabled={!connectionState.whatsapp}
-                            className={`px-4 py-2 text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
-                                selectedPlatform === 'whatsapp'
-                                    ? 'bg-green-600 text-white'
-                                    : connectionState.whatsapp
-                                        ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                        : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                            }`}
-                            title={connectionState.whatsapp ? 'WhatsApp' : 'WhatsApp not connected'}
-                        >
-                            <MessageCircle size={16} />
-                            WhatsApp
-                        </button>
-                        <button
-                            onClick={() => setSelectedPlatform('signal')}
-                            disabled={!connectionState.signal}
-                            className={`px-4 py-2 text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
-                                selectedPlatform === 'signal'
-                                    ? 'bg-blue-600 text-white'
-                                    : connectionState.signal
-                                        ? 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                        : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                            }`}
-                            title={connectionState.signal ? 'Signal' : 'Signal not connected'}
-                        >
-                            <MessageCircle size={16} />
-                            Signal
-                        </button>
-                    </div>
-                    <input
-                        type="text"
-                        placeholder="Enter phone number (e.g. 491701234567)"
-                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                        value={inputNumber}
-                        onChange={(e) => setInputNumber(e.target.value)}
-                        onKeyPress={(e) => e.key === 'Enter' && handleAdd()}
-                    />
-                    <button
-                        onClick={handleAdd}
-                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 font-medium transition-colors"
-                    >
-                        <Plus size={20} /> Add Contact
-                    </button>
-                </div>
-                {error && <p className="mt-2 text-red-500 text-sm">{error}</p>}
             </div>
 
-            {/* Connections Panel */}
-            {showConnections && (
-                <Login connectionState={connectionState} />
-            )}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="rounded-xl border border-slate-700 bg-slate-900/90 p-4">
+                    <p className="text-slate-400 text-xs uppercase">Tracked Contacts</p>
+                    <p className="text-2xl font-semibold text-cyan-200">{contacts.size}</p>
+                </div>
+                <div className="rounded-xl border border-slate-700 bg-slate-900/90 p-4">
+                    <p className="text-slate-400 text-xs uppercase">Observed Devices</p>
+                    <p className="text-2xl font-semibold text-cyan-200">{totalDevices}</p>
+                </div>
+                <div className="rounded-xl border border-slate-700 bg-slate-900/90 p-4">
+                    <p className="text-slate-400 text-xs uppercase">Probe Profile</p>
+                    <p className="text-2xl font-semibold text-cyan-200">{probeMethod}</p>
+                </div>
+                <div className="rounded-xl border border-slate-700 bg-slate-900/90 p-4">
+                    <p className="text-slate-400 text-xs uppercase">Privacy Mode</p>
+                    <p className="text-2xl font-semibold text-cyan-200">{privacyMode ? 'Enabled' : 'Disabled'}</p>
+                </div>
+            </div>
 
-            {/* Contact Cards */}
+            {showConnections && <Login connectionState={connectionState} />}
+
             {contacts.size === 0 ? (
-                <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl p-12 text-center">
-                    <p className="text-gray-500 text-lg">No contacts being tracked</p>
-                    <p className="text-gray-400 text-sm mt-2">Add a contact above to start tracking</p>
+                <div className="rounded-xl p-12 text-center border border-dashed border-slate-600 bg-slate-950/60">
+                    <p className="text-slate-300 text-lg">No contacts currently tracked.</p>
+                    <p className="text-slate-500 text-sm mt-2">Use intake controls to begin RTT analysis.</p>
                 </div>
             ) : (
                 <div className="space-y-6">
